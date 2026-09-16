@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    container_name: flask_app
+    ports:
+      - "5000:5000"
+    environment:
+      # SQLite is stored locally, so no DB env vars are needed.
+      FLASK_ENV: development
+    volumes:
+      - .:/app               # live‑code sync for easy dev
+    depends_on:
+      - mysql
+
+  mysql:
+    build: ./mysql
+    container_name: mysql_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: flaskdb
+      MYSQL_USER: flaskuser
+      MYSQL_PASSWORD: flaskpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql   # persistent storage
+
+volumes:
+  mysql_data:
