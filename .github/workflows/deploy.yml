@@ -1,25 +1,89 @@
-name: Deploy to EC2 Self-Hosted Runner
+name: Flask 2-Tier CI/CD
 
 on:
   push:
-    branches: [ uat ]
+    branches:
+      - main
+
   workflow_dispatch:
 
 jobs:
-  deploy:
-    runs-on: [self-hosted, ec2-runner]
+
+  # -----------------------------
+  # CI
+  # -----------------------------
+  test:
+    name: Test Application
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Checkout source code
+        uses: actions/checkout@v6
 
-      - name: Build Docker image
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
         run: |
-          docker build -t myapp:latest .
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Deploy with Docker Compose
+      - name: Run tests
         run: |
-          # Ensure docker-compose.yml is present in the repo root
-          docker compose up -d --remove-orphans
+          pytest
+
+
+  # -----------------------------
+  # CD
+  # -----------------------------
+  deploy:
+    name: Deploy to EC2
+    needs: test
+
+    runs-on: [self-hosted, linux, x64, flask-ec2]
+
+    steps:
+
+      - name: Deploy application
+        shell: bash
+        run: |
+
+          set -e
+
+          echo "Starting deployment..."
+
+          cd /opt/flask-2-tier
+
+          echo "Fetching latest code..."
+
+          git fetch origin main
+          git reset --hard origin/main
+
+          echo "Creating virtual environment..."
+
+          python3 -m venv venv
+
+          echo "Installing dependencies..."
+
+          ./venv/bin/pip install --upgrade pip
+          ./venv/bin/pip install -r requirements.txt
+
+          echo "Stopping existing Flask application..."
+
+          pkill -f "python.*app.py" || true
+
+          echo "Starting Flask application..."
+
+          nohup ./venv/bin/python app.py \
+            > /opt/flask-2-tier/flask.log 2>&1 &
+
+          sleep 5
+
+          echo "Running health check..."
+
+          curl --fail http://localhost:5000/
+
+          echo "Deployment successful!"
