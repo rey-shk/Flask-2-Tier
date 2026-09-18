@@ -14,24 +14,18 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo 'Running SonarQube Analysis...'
-                script {
-                    withSonarQubeEnv(installationName: 'sonar-demo', credentialsId: 'sonar-demo') {
-                        def scannerPath = "sonar-scanner"
-                        try {
-                            def scannerHome = tool 'sonar-demo'
-                            scannerPath = "${scannerHome}/bin/sonar-scanner"
-                        } catch (Exception e) {
-                            echo "Tool 'sonar-demo' not found in Global Tool Configuration, using system sonar-scanner executable."
-                        }
-
-                        sh """
-                            ${scannerPath} \
-                              -Dsonar.projectKey=flask-2-tier \
-                              -Dsonar.projectName="Flask-2-Tier" \
-                              -Dsonar.sources=.
-                        """
-                    }
+                echo 'Sending code analysis to SonarQube server at EC2...'
+                withSonarQubeEnv('sonar-demo') {
+                    sh '''
+                        docker run --rm \
+                          -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
+                          -e SONAR_TOKEN="${SONAR_AUTH_TOKEN}" \
+                          -v "${WORKSPACE}:/usr/src" \
+                          sonarsource/sonar-scanner-cli \
+                          -Dsonar.projectKey=flask-2-tier \
+                          -Dsonar.projectName="Flask-2-Tier" \
+                          -Dsonar.sources=.
+                    '''
                 }
             }
         }
