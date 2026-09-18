@@ -15,22 +15,23 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 echo 'Running SonarQube Analysis...'
-                withSonarQubeEnv(installationName: 'sonar-demo', credentialsId: 'sonar-demo') {
-                    sh '''
-                        # Run SonarScanner (uses installed tool or system sonar-scanner)
-                        if command -v sonar-scanner >/dev/null 2>&1; then
-                            sonar-scanner \
+                script {
+                    withSonarQubeEnv(installationName: 'sonar-demo', credentialsId: 'sonar-demo') {
+                        def scannerPath = "sonar-scanner"
+                        try {
+                            def scannerHome = tool 'sonar-demo'
+                            scannerPath = "${scannerHome}/bin/sonar-scanner"
+                        } catch (Exception e) {
+                            echo "Tool 'sonar-demo' not found in Global Tool Configuration, using system sonar-scanner executable."
+                        }
+
+                        sh """
+                            ${scannerPath} \
                               -Dsonar.projectKey=flask-2-tier \
                               -Dsonar.projectName="Flask-2-Tier" \
                               -Dsonar.sources=.
-                        else
-                            echo "sonar-scanner CLI tool found via Jenkins SonarQube Scanner Plugin"
-                            ${SONAR_RUNNER_HOME}/bin/sonar-scanner \
-                              -Dsonar.projectKey=flask-2-tier \
-                              -Dsonar.projectName="Flask-2-Tier" \
-                              -Dsonar.sources=.
-                        fi
-                    '''
+                        """
+                    }
                 }
             }
         }
