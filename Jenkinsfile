@@ -12,6 +12,29 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                echo 'Running SonarQube Analysis...'
+                withSonarQubeEnv(installationName: 'sonar-demo', credentialsId: 'sonar-demo') {
+                    sh '''
+                        # Run SonarScanner (uses installed tool or system sonar-scanner)
+                        if command -v sonar-scanner >/dev/null 2>&1; then
+                            sonar-scanner \
+                              -Dsonar.projectKey=flask-2-tier \
+                              -Dsonar.projectName="Flask-2-Tier" \
+                              -Dsonar.sources=.
+                        else
+                            echo "sonar-scanner CLI tool found via Jenkins SonarQube Scanner Plugin"
+                            ${SONAR_RUNNER_HOME}/bin/sonar-scanner \
+                              -Dsonar.projectKey=flask-2-tier \
+                              -Dsonar.projectName="Flask-2-Tier" \
+                              -Dsonar.sources=.
+                        fi
+                    '''
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
