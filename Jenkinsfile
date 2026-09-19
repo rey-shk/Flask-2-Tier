@@ -14,17 +14,18 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo 'Running SonarQube Analysis...'
-                script {
-                    def scannerHome = tool 'sonar-demo'
-                    withSonarQubeEnv(installationName: 'sonar-demo', credentialsId: 'sonar-cred') {
-                        sh """
-                            ${scannerHome}/bin/sonar-scanner \
-                              -Dsonar.projectKey=flask-2-tier \
-                              -Dsonar.projectName="Flask-2-Tier" \
-                              -Dsonar.sources=.
-                        """
-                    }
+                echo 'Running SonarQube Analysis via Docker container...'
+                withSonarQubeEnv(installationName: 'sonar-demo', credentialsId: 'sonar-cred') {
+                    sh '''
+                        docker run --rm \
+                          -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
+                          -e SONAR_TOKEN="${SONAR_AUTH_TOKEN}" \
+                          -v "${WORKSPACE}:/usr/src" \
+                          sonarsource/sonar-scanner-cli \
+                          -Dsonar.projectKey=flask-2-tier \
+                          -Dsonar.projectName="Flask-2-Tier" \
+                          -Dsonar.sources=.
+                    '''
                 }
             }
         }
