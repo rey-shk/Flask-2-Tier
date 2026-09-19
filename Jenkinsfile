@@ -14,34 +14,26 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo 'Running SonarQube Code Analysis...'
-                withSonarQubeEnv('sonar-demo') {
-                    sh '''
-                        docker run --rm \
-                          -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
-                          -e SONAR_TOKEN="${SONAR_AUTH_TOKEN}" \
-                          -v "${WORKSPACE}:/usr/src" \
-                          sonarsource/sonar-scanner-cli \
-                          -Dsonar.projectKey=flask-2-tier \
-                          -Dsonar.projectName="Flask-2-Tier" \
-                          -Dsonar.sources=.
-                    '''
+                echo 'Running SonarQube Analysis...'
+                script {
+                    def scannerHome = tool 'sonar-demo'
+                    withSonarQubeEnv('sonar-demo') {
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                              -Dsonar.projectKey=flask-2-tier \
+                              -Dsonar.projectName="Flask-2-Tier" \
+                              -Dsonar.sources=.
+                        """
+                    }
                 }
             }
         }
 
         stage('OWASP Dependency Check') {
             steps {
-                echo 'Running OWASP Dependency-Check on dependencies...'
-                sh '''
-                    docker run --rm \
-                      -v "${WORKSPACE}:/src" \
-                      owasp/dependency-check \
-                      --scan /src \
-                      --format "ALL" \
-                      --out /src/dependency-check-report \
-                      --failOnCVSS 7 || true
-                '''
+                echo 'Running OWASP Dependency-Check using installed tool...'
+                dependencyCheck additionalArguments: '--scan ./ --format ALL', odcInstallation: 'dependency-check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
 
