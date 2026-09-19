@@ -27,17 +27,25 @@ pipeline {
                           -Dsonar.projectKey=flask-2-tier \
                           -Dsonar.projectName="Flask-2-Tier" \
                           -Dsonar.sources=. \
-                          -Dsonar.exclusions="**/.trivy-cache/**,**/dependency-check-report/**"
+                          -Dsonar.exclusions="**/.trivy-cache/**"
                     '''
                 }
             }
         }
 
-        stage('OWASP Dependency Check') {
+        // Option 2: Software Composition Analysis (SCA) via Trivy (No NVD required)
+        stage('Trivy Dependency (SCA) Scan') {
             steps {
-                echo 'Running OWASP Dependency-Check using installed tool...'
-                dependencyCheck additionalArguments: '--scan ./ --format ALL', odcInstallation: 'dependency-check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                echo 'Scanning dependencies for vulnerabilities with Trivy (SCA)...'
+                sh '''
+                    docker run --rm \
+                      -v "${WORKSPACE}:/src" \
+                      -v trivy-cache:/root/.cache/ \
+                      aquasec/trivy:latest fs \
+                      --exit-code 0 \
+                      --severity HIGH,CRITICAL \
+                      /src/requirements.txt
+                '''
             }
         }
 
@@ -52,7 +60,6 @@ pipeline {
             steps {
                 echo 'Scanning Docker image for vulnerabilities with Trivy...'
                 sh '''
-                    # Use a Docker named volume (trivy-cache) instead of workspace directory to avoid permission issues
                     docker run --rm \
                       -v /var/run/docker.sock:/var/run/docker.sock \
                       -v trivy-cache:/root/.cache/ \
