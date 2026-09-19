@@ -9,6 +9,8 @@ pipeline {
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[url: 'https://github.com/rey-shk/Flask-2-Tier.git']]
                 ])
+                // Clean up root-owned cache from any previous runs
+                sh 'docker run --rm -v "${WORKSPACE}:/src" alpine rm -rf /src/.trivy-cache || true'
             }
         }
 
@@ -24,7 +26,8 @@ pipeline {
                           sonarsource/sonar-scanner-cli \
                           -Dsonar.projectKey=flask-2-tier \
                           -Dsonar.projectName="Flask-2-Tier" \
-                          -Dsonar.sources=.
+                          -Dsonar.sources=. \
+                          -Dsonar.exclusions="**/.trivy-cache/**,**/dependency-check-report/**"
                     '''
                 }
             }
@@ -49,9 +52,10 @@ pipeline {
             steps {
                 echo 'Scanning Docker image for vulnerabilities with Trivy...'
                 sh '''
+                    # Use a Docker named volume (trivy-cache) instead of workspace directory to avoid permission issues
                     docker run --rm \
                       -v /var/run/docker.sock:/var/run/docker.sock \
-                      -v "${WORKSPACE}/.trivy-cache:/root/.cache/" \
+                      -v trivy-cache:/root/.cache/ \
                       aquasec/trivy:latest image \
                       --exit-code 0 \
                       --severity HIGH,CRITICAL \
