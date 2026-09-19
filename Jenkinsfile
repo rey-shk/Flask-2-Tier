@@ -14,7 +14,7 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo 'Sending code analysis to SonarQube server at EC2...'
+                echo 'Running SonarQube Code Analysis...'
                 withSonarQubeEnv('sonar-demo') {
                     sh '''
                         docker run --rm \
@@ -30,6 +30,21 @@ pipeline {
             }
         }
 
+        stage('OWASP Dependency Check') {
+            steps {
+                echo 'Running OWASP Dependency-Check on dependencies...'
+                sh '''
+                    docker run --rm \
+                      -v "${WORKSPACE}:/src" \
+                      owasp/dependency-check \
+                      --scan /src \
+                      --format "ALL" \
+                      --out /src/dependency-check-report \
+                      --failOnCVSS 7 || true
+                '''
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
@@ -37,9 +52,23 @@ pipeline {
             }
         }
 
+        stage('Trivy Image Vulnerability Scan') {
+            steps {
+                echo 'Scanning Docker image for vulnerabilities with Trivy...'
+                sh '''
+                    docker run --rm \
+                      -v /var/run/docker.sock:/var/run/docker.sock \
+                      -v "${WORKSPACE}/.trivy-cache:/root/.cache/" \
+                      aquasec/trivy:latest image \
+                      --severity HIGH,CRITICAL \
+                      flask-app:latest
+                '''
+            }
+        }
+
         stage('Run Docker Container') {
             steps {
-                echo 'Running Docker container...'
+                echo 'Deploying Docker container...'
                 sh '''
                     # Stop and remove existing container if running
                     docker stop flask-app-container || true
@@ -49,6 +78,12 @@ pipeline {
                     docker run -d --name flask-app-container -p 5000:5000 flask-app:latest
                 '''
             }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline execution complete.'
         }
     }
 }
