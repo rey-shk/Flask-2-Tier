@@ -53,6 +53,7 @@ pipeline {
                       -v /var/run/docker.sock:/var/run/docker.sock \
                       -v "${WORKSPACE}/.trivy-cache:/root/.cache/" \
                       aquasec/trivy:latest image \
+                      --exit-code 0 \
                       --severity HIGH,CRITICAL \
                       flask-app:latest
                 '''
