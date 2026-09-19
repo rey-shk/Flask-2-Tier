@@ -15,7 +15,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 echo 'Running SonarQube Analysis via Docker container...'
-                withSonarQubeEnv(installationName: 'sonar-demo', credentialsId: 'sonar-cred') {
+                withSonarQubeEnv {
                     sh '''
                         docker run --rm \
                           -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
