@@ -17,7 +17,7 @@ pipeline {
                 echo 'Running SonarQube Analysis...'
                 script {
                     def scannerHome = tool 'sonar-demo'
-                    withSonarQubeEnv('sonar-demo') {
+                    withSonarQubeEnv(installationName: 'sonar-demo', credentialsId: 'sonar-cred') {
                         sh """
                             ${scannerHome}/bin/sonar-scanner \
                               -Dsonar.projectKey=flask-2-tier \
